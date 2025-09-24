@@ -32,6 +32,25 @@ def show_main(request):
     return render(request, "main.html", context)
 
 
+def delete_news(request, id):
+    news = get_object_or_404(News, pk=id)
+    news.delete()
+    return HttpResponseRedirect(reverse('main:show_main'))
+
+def edit_news(request, id):
+    news = get_object_or_404(News, pk=id)
+    form = NewsForm(request.POST or None, instance=news)
+    if form.is_valid() and request.method == 'POST':
+        form.save()
+        return redirect('main:show_main')
+
+    context = {
+        'form': form
+    }
+
+    return render(request, "edit_news.html", context)
+
+
 def register(request):
     form = UserCreationForm()
 
