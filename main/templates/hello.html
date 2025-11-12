@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <button id="filterlowhigh">Filter Low to High</button>
+    <button id="filterhighlow">Filter high to low</button>
+    <script>
+        const lowhigh = document.querySelector("#filterlowhigh");
+        const highlow = document.querySelector("#filterhighlow");
+
+        lowhigh.addEventListener("click", async(e) => {
+            try{
+                const result = await fetch("https://price/api")
+                const json = await result.json();
+                sortDataAsync('asc', json);
+            } catch (err){
+                console.log(err);
+            }
+        })
+
+        highlow.addEventListener("click", async(e) => {
+            try{
+                const result = await fetch("https://price/api")
+                const json = await result.json();
+                sortDataAsync('desc', json);
+
+            } catch(err){
+                console.log(err);
+            }
+        })
+
+
+            const sortDataAsync = async (order = 'asc', data) => {
+                // 1. Await the asynchronous data retrieval
+                // 2. Apply synchronous sorting logic
+                if (order === 'asc') {
+                    data.sort((a, b) => a.value - b.value); 
+                    if (data.length === 0) {
+                        displayPageSection({ showEmpty: true });
+                    } else {
+                        renderAllNewsCards(filteredNews);
+                        displayPageSection({ showGrid: true });
+                    }
+                    // Low to high
+                } else if (order === 'desc') {
+                    data.sort((a, b) => b.value - a.value); // High to low
+                }                
+                return data;
+            };
+
+            // Example usage:
+            // Sort low to high
+            sortDataAsync('asc').then(filteredNews => {
+                  if (filteredNews.length === 0) {
+                        displayPageSection({ showEmpty: true });
+                    } else {
+                        renderAllNewsCards(filteredNews);
+                        displayPageSection({ showGrid: true });
+                    }
+            });
+
+            // Sort high to low
+            sortDataAsync('desc').then(filteredNews => {
+                    if (filteredNews.length === 0) {
+                        displayPageSection({ showEmpty: true });
+                    } else {
+                        renderAllNewsCards(filteredNews);
+                        displayPageSection({ showGrid: true });
+                    }
+            });
+
+
+    </script>
+</body>
+</html>

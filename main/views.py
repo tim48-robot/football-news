@@ -1,14 +1,16 @@
 import datetime
+import requests
+import json
 from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.shortcuts import render, redirect, get_object_or_404
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.core import serializers
 from django.utils.html import strip_tags
 from main.forms import NewsForm
@@ -87,6 +89,45 @@ def register(request):
           return redirect("main:login")
     context = {"form" : form}
     return render(request, 'register.html', context)
+
+
+def proxy_image(request):
+    import base64
+    from urllib.parse import urlparse, parse_qs
+    
+    image_url = request.GET.get('url')
+    if not image_url:
+        return HttpResponse('No URL provided', status=400)
+    
+    try:
+        # Handle base64 data URLs
+        if image_url.startswith('data:'):
+            # Parse data URL: data:image/jpeg;base64,<base64_string>
+            parts = image_url.split(',', 1)
+            if len(parts) == 2:
+                header, data = parts
+                # Extract mime type from header
+                mime_type = 'image/jpeg'  # default
+                if 'image/' in header:
+                    mime_type = header.split(';')[0].replace('data:', '')
+                
+                # Decode base64
+                image_data = base64.b64decode(data)
+                return HttpResponse(image_data, content_type=mime_type)
+            else:
+                return HttpResponse('Invalid data URL format', status=400)
+        
+        # Fetch image from external source
+        response = requests.get(image_url, timeout=10)
+        response.raise_for_status()
+        
+        # Return the image with proper content type
+        return HttpResponse(
+            response.content,
+            content_type=response.headers.get('Content-Type', 'image/jpeg')
+        )
+    except requests.RequestException as e:
+        return HttpResponse(f'Error fetching image: {str(e)}', status=500)
 
 def login_user(request):
     if request.method == "POST":
@@ -186,5 +227,38 @@ def show_json_by_id(request, news_id):
         return JsonResponse(data)
     except News.DoesNotExist:
         return JsonResponse({'detail': 'Not found'}, status=404)
+
+
+@csrf_exempt
+def create_news_flutter(request):
+    # Check if user is authenticated
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            "status": "error",
+            "message": "User must be authenticated to create news"
+        }, status=401)
+    
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        title = strip_tags(data.get("title", ""))  # Strip HTML tags
+        content = strip_tags(data.get("content", ""))  # Strip HTML tags
+        category = data.get("category", "")
+        thumbnail = data.get("thumbnail", "")
+        is_featured = data.get("is_featured", False)
+        user = request.user
+        
+        new_news = News(
+            title=title, 
+            content=content,
+            category=category,
+            thumbnail=thumbnail,
+            is_featured=is_featured,
+            user=user
+        )
+        new_news.save()
+        
+        return JsonResponse({"status": "success"}, status=200)
+    else:
+        return JsonResponse({"status": "error", "message": "Invalid request method"}, status=400)
 
 ## push github
